@@ -238,7 +238,7 @@ sndev__fund_user() {
     exit 2
   fi
   re='^[0-9]+$'
-  if ! [[ $2 =~ $re ]]; then
+  if ! echo "$2" | grep -qE "$re"; then
    echo "<msats> is not a positive integer"
    sndev__help_fund_user
    exit 3

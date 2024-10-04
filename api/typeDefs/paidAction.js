@@ -51,4 +51,10 @@ type DonatePaidAction implements PaidAction {
   paymentMethod: PaymentMethod!
 }
 
+type SubBondPaidAction implements PaidAction {
+  result: SubBond
+  invoice: Invoice
+  paymentMethod: PaymentMethod!
+}
+
 `

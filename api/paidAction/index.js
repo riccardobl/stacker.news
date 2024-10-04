@@ -12,6 +12,7 @@ import * as TERRITORY_CREATE from './territoryCreate'
 import * as TERRITORY_UPDATE from './territoryUpdate'
 import * as TERRITORY_BILLING from './territoryBilling'
 import * as TERRITORY_UNARCHIVE from './territoryUnarchive'
+import * as TERRITORY_POST_BOND from './territoryPostBond'
 import * as DONATE from './donate'
 import wrapInvoice from 'wallets/wrap'
 import { createInvoice as createUserInvoice } from 'wallets/server'
@@ -26,6 +27,7 @@ export const paidActions = {
   TERRITORY_UPDATE,
   TERRITORY_BILLING,
   TERRITORY_UNARCHIVE,
+  TERRITORY_POST_BOND,
   DONATE
 }
 

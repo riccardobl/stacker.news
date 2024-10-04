@@ -32,6 +32,35 @@ export async function getCost ({ subName, parentId, uploadIds, boost = 0, bio },
 export async function perform (args, context) {
   const { invoiceId, parentId, uploadIds = [], forwardUsers = [], options: pollOptions = [], boost = 0, ...data } = args
   const { tx, me, cost } = context
+  const bio = data.bio
+
+  let subName = !bio ? data.subName : null
+  if (!bio && !subName && parentId) {
+    let parent = await tx.item.findUnique({ where: { id: parseInt(parentId) } })
+    if (!parent.subName && parent.rootId) { // if the parent is not root, get the root
+      parent = await tx.item.findUnique({ where: { id: parent.rootId } })
+    }
+    subName = parent.subName
+  }
+
+  const sub = subName ? await tx.sub.findUnique({ where: { name: subName } }) : null
+
+  if (sub?.requireBondToPost && sub?.userId !== me?.id) {
+    if (!me) {
+      throw new Error('You must be logged in and have an active bond to post in this territory')
+    }
+    const activeBonds = await tx.subBond.findMany({
+      where: {
+        userId: me.id,
+        subId: sub.id,
+        bondStatus: 'active'
+      }
+    })
+    if (activeBonds.length === 0) {
+      throw new Error('You must have an active bond to post in this territory')
+    }
+  }
+
   const boostMsats = satsToMsats(boost)
 
   let invoiceData = {}

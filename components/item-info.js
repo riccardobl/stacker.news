@@ -18,6 +18,7 @@ import Hat from './hat'
 import { USER_ID } from '@/lib/constants'
 import ActionDropdown from './action-dropdown'
 import MuteDropdownItem from './mute'
+import { ForfeitSubBondDropDownItem } from './sub-bond'
 import { DropdownItemUpVote } from './upvote'
 import { useRoot } from './root'
 import { MuteSubDropdownItem, PinSubDropdownItem } from './territory-header'
@@ -261,6 +262,10 @@ export default function ItemInfo ({
                 <>
                   <hr className='dropdown-divider' />
                   <MuteDropdownItem user={item.user} />
+                </>}
+              {me &&
+                <>
+                  <ForfeitSubBondDropDownItem user={item.user} sub={sub} />
                 </>}
             </ActionDropdown>
           </>

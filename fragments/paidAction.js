@@ -64,6 +64,11 @@ export const GET_PAID_ACTION = gql`
           ...SubFullFields
         }
       }
+      ... on SubBondPaidAction {
+        result {
+          ...SubBondFields
+        }
+      }
       ... on DonatePaidAction {
         result {
           sats
@@ -229,10 +234,12 @@ export const UPSERT_SUB = gql`
   ${PAID_ACTION}
   mutation upsertSub($oldName: String, $name: String!, $desc: String, $baseCost: Int!,
     $postTypes: [String!]!, $billingType: String!,
-    $billingAutoRenew: Boolean!, $moderated: Boolean!, $nsfw: Boolean!) {
+    $billingAutoRenew: Boolean!, $moderated: Boolean!, $nsfw: Boolean!, 
+    $bondCostSats: Int, $bondDurationDays: Int, $requireBondToPost: Boolean!) {
       upsertSub(oldName: $oldName, name: $name, desc: $desc, baseCost: $baseCost,
         postTypes: $postTypes, billingType: $billingType,
-        billingAutoRenew: $billingAutoRenew, moderated: $moderated, nsfw: $nsfw) {
+        billingAutoRenew: $billingAutoRenew, moderated: $moderated, nsfw: $nsfw
+        bondCostSats: $bondCostSats, bondDurationDays: $bondDurationDays, requireBondToPost: $requireBondToPost) {
       result {
         name
       }
@@ -263,6 +270,14 @@ export const SUB_PAY = gql`
       result {
         ...SubFullFields
       }
+      ...PaidActionFields
+    }
+  }`
+
+export const POST_SUB_BOND = gql`
+  ${PAID_ACTION}
+  mutation postBond($subName: String!) {
+    postBond(subName: $subName) {
       ...PaidActionFields
     }
   }`

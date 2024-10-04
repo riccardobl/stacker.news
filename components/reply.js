@@ -14,6 +14,7 @@ import { useRoot } from './root'
 import { commentSubTreeRootId } from '@/lib/item'
 import { CREATE_COMMENT } from '@/fragments/paidAction'
 import useItemSubmit from './use-item-submit'
+import { SubBondStatus } from './sub-bond'
 
 export function ReplyOnAnotherPage ({ item }) {
   const rootId = commentSubTreeRootId(item)
@@ -110,75 +111,83 @@ export default forwardRef(function Reply ({
     onCancelQuote?.()
   }, [setReply, parentId, onCancelQuote])
 
+  if (sub?.requireBondToPost && !sub?.meActiveBond) {
+    return (
+      <SubBondStatus sub={sub} inline reply />
+    )
+  }
+
   return (
-    <div>
-      {replyOpen
-        ? <div className='p-3' />
-        : (
-          <div className={styles.replyButtons}>
-            <div
-              className='pe-3'
-              onClick={e => {
-                if (reply) {
-                  const text = window.localStorage.getItem('reply-' + parentId + '-' + 'text')
-                  if (text?.trim()) {
-                    showModal(onClose => (
-                      <>
-                        <p className='fw-bolder'>Are you sure? You will lose your work</p>
-                        <div className='d-flex justify-content-end'>
-                          <Button
-                            variant='info' onClick={() => {
-                              onCancel()
-                              onClose()
-                            }}
-                          >yep
-                          </Button>
-                        </div>
-                      </>
-                    ))
+    <>
+      <div>
+        {replyOpen
+          ? <div className='p-3' />
+          : (
+            <div className={styles.replyButtons}>
+              <div
+                className='pe-3'
+                onClick={e => {
+                  if (reply) {
+                    const text = window.localStorage.getItem('reply-' + parentId + '-' + 'text')
+                    if (text?.trim()) {
+                      showModal(onClose => (
+                        <>
+                          <p className='fw-bolder'>Are you sure? You will lose your work</p>
+                          <div className='d-flex justify-content-end'>
+                            <Button
+                              variant='info' onClick={() => {
+                                onCancel()
+                                onClose()
+                              }}
+                            >yep
+                            </Button>
+                          </div>
+                        </>
+                      ))
+                    } else {
+                      onCancel()
+                    }
                   } else {
-                    onCancel()
+                    e.preventDefault()
+                    onQuoteReply?.({ selectionOnly: true })
+                    setReply(true)
                   }
-                } else {
-                  e.preventDefault()
-                  onQuoteReply?.({ selectionOnly: true })
-                  setReply(true)
-                }
-              }}
+                }}
+              >
+                {reply ? 'cancel' : 'reply'}
+              </div>
+              {/* HACK if we need more items, we should probably do a comment toolbar */}
+              {children}
+            </div>)}
+        {reply &&
+          <div className={styles.reply}>
+            <FeeButtonProvider
+              baseLineItems={postCommentBaseLineItems({ baseCost: 1, comment: true, me: !!me })}
+              useRemoteLineItems={postCommentUseRemoteLineItems({ parentId: item.id, me: !!me })}
             >
-              {reply ? 'cancel' : 'reply'}
-            </div>
-            {/* HACK if we need more items, we should probably do a comment toolbar */}
-            {children}
-          </div>)}
-      {reply &&
-        <div className={styles.reply}>
-          <FeeButtonProvider
-            baseLineItems={postCommentBaseLineItems({ baseCost: 1, comment: true, me: !!me })}
-            useRemoteLineItems={postCommentUseRemoteLineItems({ parentId: item.id, me: !!me })}
-          >
-            <Form
-              initial={{
-                text: ''
-              }}
-              schema={commentSchema}
-              onSubmit={onSubmit}
-              storageKeyPrefix={`reply-${parentId}`}
-            >
-              <MarkdownInput
-                name='text'
-                minRows={6}
-                autoFocus={!replyOpen}
-                required
-                appendValue={quote}
-                placeholder={placeholder}
-                hint={sub?.moderated && 'this territory is moderated'}
-              />
-              <ItemButtonBar createText='reply' hasCancel={false} />
-            </Form>
-          </FeeButtonProvider>
-        </div>}
-    </div>
+              <Form
+                initial={{
+                  text: ''
+                }}
+                schema={commentSchema}
+                onSubmit={onSubmit}
+                storageKeyPrefix={`reply-${parentId}`}
+              >
+                <MarkdownInput
+                  name='text'
+                  minRows={6}
+                  autoFocus={!replyOpen}
+                  required
+                  appendValue={quote}
+                  placeholder={placeholder}
+                  hint={sub?.moderated && 'this territory is moderated'}
+                />
+                <ItemButtonBar createText='reply' hasCancel={false} />
+              </Form>
+            </FeeButtonProvider>
+          </div>}
+      </div>
+    </>
   )
 })
 

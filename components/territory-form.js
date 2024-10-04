@@ -83,6 +83,8 @@ export default function TerritoryForm ({ sub }) {
     }
   }, [sub, billing])
 
+  const [requestBondToggled, setRequestBondToPostToggled] = useState(sub?.requireBondToPost || false)
+
   return (
     <FeeButtonProvider baseLineItems={lineItems}>
       <Form
@@ -94,7 +96,10 @@ export default function TerritoryForm ({ sub }) {
           billingType: sub?.billingType || 'MONTHLY',
           billingAutoRenew: sub?.billingAutoRenew || false,
           moderated: sub?.moderated || false,
-          nsfw: sub?.nsfw || false
+          nsfw: sub?.nsfw || false,
+          requireBondToPost: sub?.requireBondToPost || false,
+          bondCostSats: sub?.bondCostSats || 10000,
+          bondDurationDays: sub?.bondDurationDays || 30
         }}
         schema={schema}
         onSubmit={onSubmit}
@@ -249,6 +254,39 @@ export default function TerritoryForm ({ sub }) {
                 name='moderated'
                 groupClassName='ms-1'
               />
+              <Checkbox
+                inline
+                label={
+                  <div className='d-flex align-items-center'>request bond to post
+                    <Info>
+                      <ol>
+                        <li>Require a bond to post for the first time in your territory.</li>
+                        <li>You will have the option to send an user's bond to the reward pool if they misbehave.</li>
+                        <li>The bond will be automatically returned to the user after a certain period of time from their last post.</li>
+                      </ol>
+                    </Info>
+                  </div>
+                }
+                handleChange={checked => setRequestBondToPostToggled(checked)}
+                name='requireBondToPost'
+                groupClassName='ms-1'
+              />
+              {requestBondToggled && (
+                <>
+                  <Input
+                    name='bondCostSats'
+                    label='Bond cost'
+                    type='number'
+                    append={<InputGroup.Text className='text-monospace'>sats</InputGroup.Text>}
+                  />
+                  <Input
+                    name='bondDurationDays'
+                    label='Bond lock duration'
+                    type='number'
+                    append={<InputGroup.Text className='text-monospace'>days</InputGroup.Text>}
+                  />
+                </>
+              )}
               <BootstrapForm.Label>nsfw</BootstrapForm.Label>
               <Checkbox
                 inline

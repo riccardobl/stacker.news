@@ -77,6 +77,11 @@ export function SettingsHeader () {
             <Nav.Link eventKey='mutes'>muted stackers</Nav.Link>
           </Link>
         </Nav.Item>
+        <Nav.Item>
+          <Link href='/settings/bonds' passHref legacyBehavior>
+            <Nav.Link eventKey='bonds'>bonds</Nav.Link>
+          </Link>
+        </Nav.Item>
       </Nav>
     </>
   )

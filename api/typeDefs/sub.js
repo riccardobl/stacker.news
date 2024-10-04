@@ -7,6 +7,12 @@ export default gql`
     subs: [Sub!]!
     topSubs(cursor: String, when: String, from: String, to: String, by: String, limit: Limit): Subs
     userSubs(name: String!, cursor: String, when: String, from: String, to: String, by: String, limit: Limit): Subs
+    userBonds(subName: String, userId: Int, filterByStatus: BondStatus, cursor: String): SubBonds
+  }
+
+  type SubBonds {
+    cursor: String
+    bonds: [SubBond!]!
   }
 
   type Subs {
@@ -18,8 +24,13 @@ export default gql`
     upsertSub(oldName: String, name: String!, desc: String, baseCost: Int!,
       postTypes: [String!]!,
       billingType: String!, billingAutoRenew: Boolean!,
-      moderated: Boolean!, nsfw: Boolean!): SubPaidAction!
+      moderated: Boolean!, nsfw: Boolean!,
+      bondCostSats: Int, bondDurationDays: Int, requireBondToPost: Boolean!
+    ): SubPaidAction!
     paySub(name: String!): SubPaidAction!
+    postBond(subName:String!): SubBondPaidAction!
+    forfeitBond(subBane: String!, userId: Int): SubBond!
+    reclaimBond(subName: String!, userId: Int): SubBond!
     toggleMuteSub(name: String!): Boolean!
     toggleSubSubscription(name: String!): Boolean!
     transferTerritory(subName: String!, userName: String!): Sub
@@ -54,6 +65,11 @@ export default gql`
     ncomments(when: String, from: String, to: String): Int!
     meSubscription: Boolean!
 
+    bondCostSats: Int
+    bondDurationDays: Int
+    requireBondToPost: Boolean
+    meActiveBond: Boolean
+
     optional: SubOptional!
   }
 
@@ -64,5 +80,27 @@ export default gql`
     stacked(when: String, from: String, to: String): Int
     spent(when: String, from: String, to: String): Int
     revenue(when: String, from: String, to: String): Int
+  }
+
+  enum BondStatus {
+    active
+    forfeited
+    reclaimed
+  }
+
+  type SubBond {
+    id: ID!
+    userId: Int!
+    subName: String!
+    bondCostSats: Int!
+    bondDurationDays: Int!
+    bondStatus: BondStatus!
+    createdAt: Date!
+    updatedAt: Date!
+    forfeitedAt: Date
+    user: User!
+    sub: Sub!
+    lastActionTime: Date
+    reclaimableInSeconds: Int    
   }
 `

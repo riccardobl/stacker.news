@@ -25,6 +25,12 @@ export async function getSub (parent, { name }, { models, me }) {
               where: {
                 userId: Number(me?.id)
               }
+            },
+            SubBond: {
+              where: {
+                userId: Number(me?.id),
+                bondStatus: 'active'
+              }
             }
           }
         }
@@ -61,6 +67,46 @@ export default {
           name: 'asc'
         }
       })
+    },
+    userBonds: async (_, { subName, userId, filterByStatus, cursor }, { models, me }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      if (subName) {
+        const sub = await models.sub.findUnique({
+          where: {
+            name: subName
+          }
+        })
+        if (!sub) {
+          throw new Error('Territory not found')
+        }
+        // territory owner can see all bonds for their territory
+        if (userId && userId !== me?.id && sub.userId !== me.id) {
+          throw new Error('You do not have permission to perform this action')
+        }
+      } else if (userId && userId !== me.id) {
+        throw new Error('You do not have permission to perform this action')
+      }
+
+      const decodedCursor = decodeCursor(cursor)
+
+      const bonds = (await models.subBond.findMany({
+        where: {
+          userId: userId || me.id,
+          ...(subName ? { subName } : {}),
+          ...(filterByStatus ? { bondStatus: filterByStatus } : {})
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: decodedCursor.limit,
+        skip: decodedCursor.offset
+      }))
+      return {
+        cursor: bonds.length === decodedCursor.limit ? nextCursorEncoded(decodedCursor) : null,
+        bonds
+      }
     },
     subLatestPost: async (parent, { name }, { models, me }) => {
       const latest = await models.item.findFirst({
@@ -149,6 +195,15 @@ export default {
         cursor: subs.length === limit ? nextCursorEncoded(decodedCursor, limit) : null,
         subs
       }
+    }
+  },
+  SubBond: {
+    lastActionTime: async (bond, args, { models, me }) => {
+      const lastUserActionTime = await getLastActionTime(models, bond.subName, me?.id)
+      return lastUserActionTime || bond.createdAt
+    },
+    reclaimableInSeconds: async (bond, args, { models }) => {
+      return await calcRemainingTimeBeforeReclaim(models, bond)
     }
   },
   Mutation: {
@@ -277,6 +332,93 @@ export default {
       }
 
       return await performPaidAction('TERRITORY_UNARCHIVE', data, { me, models, lnd })
+    },
+    postBond: async (parent, { subName }, { models, me, lnd }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      return await performPaidAction('TERRITORY_POST_BOND', { subName }, { me, models, lnd })
+    },
+    forfeitBond: async (parent, { subName, userId }, { models, me }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      models.$transaction(async tx => {
+        const sub = await tx.sub.findUnique({
+          where: {
+            name: subName
+          }
+        })
+        if (!sub) {
+          throw new Error('Territory not found')
+        }
+        // territory owner can initiate forfeit for any user
+        if (userId && userId !== me?.id && sub.userId !== me.id) {
+          throw new Error('You do not have permission to perform this action')
+        }
+        // find active bond
+        const bond = await tx.subBond.findFirst({
+          where: {
+            bondStatus: 'active',
+            userId: userId || me.id,
+            subName: sub.name
+          }
+        })
+        if (!bond) {
+          throw new Error('No active bond found')
+        }
+        await tx.subBond.update({
+          where: { id: bond.id },
+          data: {
+            bondStatus: 'forfeited',
+            forfeitedAt: new Date()
+          }
+        })
+      })
+    },
+    reclaimBond: async (parent, { subName, userId }, { models, me }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      models.$transaction(async tx => {
+        const sub = await tx.sub.findUnique({
+          where: {
+            name: subName
+          }
+        })
+        if (!sub) {
+          throw new Error('Territory not found')
+        }
+        // territory owner can initiate reclaim for any user
+        if (userId && userId !== me?.id && sub.userId !== me.id) {
+          throw new Error('You do not have permission to perform this action')
+        }
+        // find active bond
+        const bond = await tx.subBond.findFirst({
+          where: {
+            bondStatus: 'active',
+            userId: userId || me.id,
+            subName: sub.name
+          }
+        })
+        if (!bond) {
+          throw new Error('No active bond found')
+        }
+        const bondOwnerId = bond.userId
+        const bondCost = bond.bondCostSats
+        const canReclaim = (await calcRemainingTimeBeforeReclaim(models, bond)) <= 0
+        if (!canReclaim) {
+          throw new Error('Bond cannot be reclaimed yet')
+        }
+        await tx.users.update({
+          where: { id: bondOwnerId },
+          data: { balance: { increment: bondCost * 1000 } }
+        })
+        return await tx.subBond.update({
+          where: { id: bond.id },
+          data: { bondStatus: 'reclaimed' }
+        })
+      })
     }
   },
   Sub: {
@@ -292,6 +434,13 @@ export default {
         return sub.meMuteSub
       }
       return sub.MuteSub?.length > 0
+    },
+    meActiveBond: async (sub, args, { models, me }) => {
+      if (sub.meActiveBond !== undefined) {
+        return sub.meActiveBond
+      }
+      const ownerHasActiveBond = false
+      return me && (sub.SubBond?.length > 0 || (ownerHasActiveBond && me.id === sub.userId))
     },
     nposts: async (sub, { when, from, to }, { models }) => {
       if (typeof sub.nposts !== 'undefined') {
@@ -350,4 +499,22 @@ async function updateSub (parent, { oldName, ...data }, { me, models, lnd }) {
     }
     throw error
   }
+}
+
+async function getLastActionTime (tx, subName, userId) {
+  const result = await tx.$queryRaw`
+    SELECT "Item".created_at
+    FROM "Item"
+    LEFT JOIN "Item" root ON "Item"."rootId" = root.id
+    WHERE (root."subName" = ${subName} OR "Item"."subName" = ${subName}) AND "Item"."userId" = ${userId}
+    ORDER BY "Item".created_at DESC
+    LIMIT 1
+  `
+  return result[0]?.created_at
+}
+
+async function calcRemainingTimeBeforeReclaim (models, bond) {
+  const bondDurationSeconds = bond.bondDurationDays * 24 * 60 * 60
+  const lastUserActionTime = new Date(await getLastActionTime(models, bond.subName, bond.userId) || bond.createdAt).getTime() / 1000
+  return Math.floor((lastUserActionTime + bondDurationSeconds) - (Date.now() / 1000))
 }

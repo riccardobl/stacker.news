@@ -14,6 +14,8 @@ function paidActionType (actionType) {
     case 'TERRITORY_BILLING':
     case 'TERRITORY_UNARCHIVE':
       return 'SubPaidAction'
+    case 'TERRITORY_POST_BOND':
+      return 'SubBondPaidAction'
     case 'DONATE':
       return 'DonatePaidAction'
     case 'POLL_VOTE':

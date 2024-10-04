@@ -15,6 +15,7 @@ import FeeButton, { FeeButtonProvider, postCommentBaseLineItems, postCommentUseR
 import Delete from './delete'
 import CancelButton from './cancel-button'
 import { TerritoryInfo } from './territory-header'
+import { SubBondStatus } from '@/components/sub-bond'
 
 export function PostForm ({ type, sub, children }) {
   const { me } = useMe()
@@ -98,41 +99,50 @@ export function PostForm ({ type, sub, children }) {
       return acc
     }, [])
 
+    if (sub?.requireBondToPost && !sub?.meActiveBond) {
+      return (
+        <SubBondStatus sub={sub} />
+      )
+    }
+
     return (
-      <div className='position-relative d-flex flex-column align-items-start'>
-        {errorMessage &&
-          <Alert className='position-absolute' style={{ top: '-6rem' }} variant='danger' onClose={() => setErrorMessage(undefined)} dismissible>
-            {errorMessage}
-          </Alert>}
-        <SubSelect
-          prependSubs={['pick territory']}
-          className='d-flex'
-          noForm
-          size='medium'
-          sub={sub?.name}
-          info={sub && <TerritoryInfo sub={sub} />}
-          hint={sub?.moderated && 'this territory is moderated'}
-        />
-        <div>
-          {postButtons}
-        </div>
-        <div className='d-flex mt-4'>
-          <AccordianItem
-            headerColor='#6c757d'
-            header={<div className='fw-bold text-muted'>more types</div>}
-            body={
-              <div className='align-items-center'>
-                {morePostButtons}
-                <div className='mt-3 d-flex justify-content-center'>
-                  <Link href='/~jobs/post'>
-                    <Button onClick={checkSession} variant='info'>job</Button>
-                  </Link>
-                </div>
-              </div>
-              }
+      <>
+        {sub?.requireBondToPost && <SubBondStatus sub={sub} />}
+        <div className='position-relative d-flex flex-column align-items-start'>
+          {errorMessage &&
+            <Alert className='position-absolute' style={{ top: '-6rem' }} variant='danger' onClose={() => setErrorMessage(undefined)} dismissible>
+              {errorMessage}
+            </Alert>}
+          <SubSelect
+            prependSubs={['pick territory']}
+            className='d-flex'
+            noForm
+            size='medium'
+            sub={sub?.name}
+            info={sub && <TerritoryInfo sub={sub} />}
+            hint={sub?.moderated && 'this territory is moderated'}
           />
+          <div>
+            {postButtons}
+          </div>
+          <div className='d-flex mt-4'>
+            <AccordianItem
+              headerColor='#6c757d'
+              header={<div className='fw-bold text-muted'>more types</div>}
+              body={
+                <div className='align-items-center'>
+                  {morePostButtons}
+                  <div className='mt-3 d-flex justify-content-center'>
+                    <Link href='/~jobs/post'>
+                      <Button onClick={checkSession} variant='info'>job</Button>
+                    </Link>
+                  </div>
+                </div>
+                }
+            />
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 

@@ -20,8 +20,12 @@ export const SUB_FIELDS = gql`
     moderated
     moderatedCount
     meMuteSub
+    meActiveBond
     meSubscription
     nsfw
+    bondCostSats
+    bondDurationDays
+    requireBondToPost
   }`
 
 export const SUB_FULL_FIELDS = gql`

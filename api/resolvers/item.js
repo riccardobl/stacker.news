@@ -21,6 +21,7 @@ import assertApiKeyNotPermitted from './apiKey'
 import performPaidAction from '../paidAction'
 import { GqlAuthenticationError, GqlInputError } from '@/lib/error'
 import { verifyHmac } from './wallet'
+import { getSub } from './sub'
 
 function commentsOrderByClause (me, models, sort) {
   if (sort === 'recent') {
@@ -126,7 +127,9 @@ export async function itemQueryWithMeta ({ me, models, query, orderBy = '' }, ..
         COALESCE("ItemAct"."meDontLikeMsats", 0) as "meDontLikeMsats", b."itemId" IS NOT NULL AS "meBookmark",
         "ThreadSubscription"."itemId" IS NOT NULL AS "meSubscription", "ItemForward"."itemId" IS NOT NULL AS "meForward",
         to_jsonb("Sub".*) || jsonb_build_object('meMuteSub', "MuteSub"."userId" IS NOT NULL)
-        || jsonb_build_object('meSubscription', "SubSubscription"."userId" IS NOT NULL) as sub
+        || jsonb_build_object('meSubscription', "SubSubscription"."userId" IS NOT NULL)
+        || jsonb_build_object('meActiveBond', "MeActiveBond"."subName" IS NOT NULL ) 
+      as sub
       FROM (
         ${query}
       ) "Item"
@@ -148,6 +151,12 @@ export async function itemQueryWithMeta ({ me, models, query, orderBy = '' }, ..
         AND "ItemAct"."itemId" = "Item".id
         GROUP BY "ItemAct"."itemId"
       ) "ItemAct" ON true
+      LEFT JOIN (
+        SELECT "subName"
+        FROM "SubBond"
+        WHERE "userId" = ${me.id} AND "bondStatus" = 'active'
+        GROUP BY "subName"
+      ) "MeActiveBond" ON "Sub"."name" = "MeActiveBond"."subName"
       ${orderBy}`, ...args)
   }
 }
@@ -982,7 +991,7 @@ export default {
         return item.sub
       }
 
-      return await models.sub.findUnique({ where: { name: item.subName || item.root?.subName } })
+      return await getSub(item.subName || item.root?.subName)
     },
     position: async (item, args, { models }) => {
       if (!item.pinId) {

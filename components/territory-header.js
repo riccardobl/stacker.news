@@ -12,7 +12,8 @@ import { gql, useMutation } from '@apollo/client'
 import { useToast } from './toast'
 import ActionDropdown from './action-dropdown'
 import { TerritoryTransferDropdownItem } from './territory-transfer'
-
+import { useShowModal } from './modal'
+import { ManageSubBondComponent } from './sub-bond'
 export function TerritoryDetails ({ sub, children }) {
   return (
     <AccordianCard
@@ -21,6 +22,7 @@ export function TerritoryDetails ({ sub, children }) {
           {sub.name}
           {sub.status === 'STOPPED' && <Badge className='ms-2' bg='danger'>archived</Badge>}
           {(sub.moderated || sub.moderatedCount > 0) && <Badge className='ms-2' bg='secondary'>moderated{sub.moderatedCount > 0 && ` ${sub.moderatedCount}`}</Badge>}
+          {(sub.requireBondToPost) && <Badge className='ms-2' bg={sub.meActiveBond ? 'success' : 'danger'}>{sub.meActiveBond ? 'bond active' : 'bond required to post'}</Badge>}
           {(sub.nsfw) && <Badge className='ms-2' bg='secondary'>nsfw</Badge>}
         </small>
       }
@@ -51,6 +53,17 @@ export function TerritoryInfo ({ sub }) {
           <span className='fw-bold'>{numWithUnits(sub.baseCost)}</span>
         </div>
         <TerritoryBillingLine sub={sub} />
+        {sub.requireBondToPost &&
+        (
+          <div className='text-muted'>
+            <span>post bond </span>
+            <span className='fw-bold'>{numWithUnits(sub.bondCostSats)}</span>
+            <span> for </span>
+            <span className='fw-bold'>{sub.bondDurationDays}</span>
+            <span> days</span>
+          </div>
+        )}
+
       </CardFooter>
     </>
   )
@@ -59,6 +72,7 @@ export function TerritoryInfo ({ sub }) {
 export default function TerritoryHeader ({ sub }) {
   const { me } = useMe()
   const toaster = useToast()
+  const showModal = useShowModal()
 
   const [toggleMuteSub] = useMutation(
     gql`
@@ -84,7 +98,7 @@ export default function TerritoryHeader ({ sub }) {
       <div className='mb-2 mt-1'>
         <div>
           <TerritoryDetails sub={sub}>
-            <div className='d-flex my-2 justify-content-end'>
+            <div className='d-flex my-2 justify-content-end gap-2'>
               {sub.name}
               <Share path={`/~${sub.name}`} title={`~${sub.name} stacker news territory`} className='mx-1' />
               {me &&
@@ -109,7 +123,19 @@ export default function TerritoryHeader ({ sub }) {
                         }}
                       >{sub.meMuteSub ? 'join' : 'mute'} territory
                       </Button>)
-              )}
+                )}
+                  {sub?.requireBondToPost &&
+                    <Button
+                      variant='outline-grey border-2 py-0 rounded'
+                      size='sm'
+                      onClick={() => {
+                        if (!me) return
+                        showModal(onClose => (
+                          <ManageSubBondComponent sub={sub} onClose={onClose} onCompleted={() => toaster.success('bond managed')} onError={e => toaster.danger(e.message)} />
+                        ))
+                      }}
+                    >{sub.meActiveBond ? 'manage bond' : 'post bond'}
+                    </Button>}
                   <ActionDropdown>
                     <ToggleSubSubscriptionDropdownItem sub={sub} />
                     {isMine && (

@@ -23,6 +23,8 @@ export const ITEM_FIELDS = gql`
       moderated
       meMuteSub
       meSubscription
+      meActiveBond
+      requireBondToPost
       nsfw
     }
     otsHash

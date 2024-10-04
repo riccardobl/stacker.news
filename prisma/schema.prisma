@@ -134,6 +134,7 @@ model User {
   ItemUserAgg               ItemUserAgg[]
   oneDayReferrals           OneDayReferral[]     @relation("OneDayReferral_referrer")
   oneDayReferrees           OneDayReferral[]     @relation("OneDayReferral_referrees")
+  SubBond                   SubBond[]    
 
   @@index([photoId])
   @@index([createdAt], map: "users.created_at_index")
@@ -690,6 +691,11 @@ model Sub {
   SubSubscription   SubSubscription[]
   TerritoryTransfer TerritoryTransfer[]
 
+  bondCostSats      Int       @default(10000)
+  bondDurationDays  Int       @default(30)
+  requireBondToPost Boolean   @default(false)
+  SubBond           SubBond[] 
+
   @@index([parentName])
   @@index([createdAt])
   @@index([userId])
@@ -715,6 +721,30 @@ model SubAct {
   @@index([createdAt, type])
   @@index([userId, createdAt, type])
 }
+
+enum BondStatus {
+  active
+  reclaimed
+  forfeited
+}
+
+model SubBond {
+  id               Int        @id @default(autoincrement())
+  userId           Int
+  subName          String     @db.Citext
+  bondCostSats     Int
+  bondDurationDays Int        @default(30)
+  bondStatus       BondStatus @default(active)
+  createdAt                 DateTime             @default(now()) @map("created_at")
+  updatedAt                 DateTime             @default(now()) @updatedAt @map("updated_at")
+  forfeitedAt               DateTime?            @map("forfeited_at")
+
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sub              Sub        @relation(fields: [subName], references: [name], onDelete: Cascade, onUpdate: Cascade)
+
+}
+
+
 
 model MuteSub {
   createdAt DateTime @default(now()) @map("created_at")
